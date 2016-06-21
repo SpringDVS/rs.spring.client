@@ -1,0 +1,13 @@
+[package]
+
+name = "spring_client"
+version = "1.0.0"
+authors = [ "Charlie Fyvie-Gauld <cfg@zunautica.org>" ]
+license = "GPLv3"
+
+[[bin]]
+
+name = "springnet"
+
+[dependencies.spring_dvs]
+path = "/home/cfg/Workspace/rs.springdvs.lib/"
