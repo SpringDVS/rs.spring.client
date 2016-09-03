@@ -1,5 +1,7 @@
 extern crate spring_dvs;
 
+use std::str;
+use std::str::FromStr;
 use std::net::UdpSocket;
 use std::io::{ErrorKind};
 use std::time::Duration;
@@ -25,6 +27,35 @@ struct Config {
 	target: String,
 	protocol: Protocol,
 	port: u32,
+}
+
+
+fn content_len(bytes: &[u8]) -> Option<(usize,usize)> {
+
+	if bytes.len() < 4 || &bytes[0..3] != b"200" {
+		return None
+	}
+
+	
+	let bytestr = match str::from_utf8(&bytes[4..]) {
+		Ok(s) => s,
+		Err(_) => return None
+	};
+	
+	
+	
+	let s = match String::from_str(bytestr) {
+		Ok(s) => s,
+		Err(_) => return None
+	};
+
+	let index = s.find(" ").unwrap();
+	let (sl,_) = s.split_at(index);
+	
+	Some(match sl.parse() {
+			Ok(n) => (n,(4+index+1)),
+			Err(_) => return None
+	})
 }
 
 fn main() {
@@ -114,8 +145,8 @@ fn service_udp(msg: &str, cfg: &Config) {
 			_ => panic!("Error Writing to socket")
 		}
 		
-		let mut buf = [0;768];
-		let (sz, _) = match socket.recv_from(&mut buf) {
+		let mut buf = [0;1048576];
+		let sz = match socket.recv(&mut buf) {
 			Ok(t) => t,
 			Err(e) => {
 				match e.kind() { 
@@ -126,8 +157,20 @@ fn service_udp(msg: &str, cfg: &Config) {
 
 		};
 		
+
+		let (len, split) = match content_len(&buf) {
+			Some(s) => s,
+			None => (0,0)
+		};
+		
 		let mut v : Vec<u8> = Vec::new();
 		v.extend_from_slice(&buf[0..sz]);
+		
+		if len > 1048576-split  {
+			println!("[Warning] Need bigger buffer for {} bytes", len);
+		}
+		
+		
 		let s = match String::from_utf8(v) {
 			Ok(s) => s,
 			Err(_) => panic!("Error on response conversion")
